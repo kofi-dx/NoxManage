@@ -1,0 +1,92 @@
+
+"use client";
+
+import { useParams, useRouter } from "next/navigation";
+import { PaymentColumns } from "./columns";
+import { useState } from "react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button";
+import { Copy, Edit, MoreVertical, Trash } from "lucide-react";
+import toast from "react-hot-toast";
+import axios from "axios";
+import { AlertModal } from "@/components/modal/alert-modal";
+import { isAfter, subDays } from "date-fns";
+
+interface CellActionProps {
+  data: PaymentColumns;
+}
+
+export const CellAction = ({ data }: CellActionProps) => {
+  const router = useRouter();
+  const params = useParams();
+
+  const [isLoading, setIsLoading] = useState(false);
+  const [open, setOpen] = useState(false);
+
+  const onCopy = (id: string) => {
+    navigator.clipboard.writeText(id);
+    toast.success("Transaction ID copied");
+  };
+
+  const onDelete = async () => {
+    try {
+      setIsLoading(true);
+      await axios.delete(`/api/${params.storeId}/payments/${data.id}`);
+      toast.success("Payment Removed");
+      location.reload();
+    } catch (error) {
+      console.error(error);
+      toast.error("Something went wrong");
+    } finally {
+      setIsLoading(false);
+      setOpen(false);
+    }
+  };
+
+  const onUpdate = () => {
+    setIsLoading(true);
+    router.push(`/${params.storeId}/payments/${data.id}`);
+  };
+
+  // Check if updating is allowed
+  const isUpdateAllowed = isAfter(new Date(), subDays(new Date(data.createdAt), -30));
+
+  return (
+    <>
+      <AlertModal
+        isOpen={open}
+        onClose={() => setOpen(false)}
+        onConfirm={onDelete}
+        loading={isLoading}
+      />
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button className="h-8 w-8 p-0" variant={"ghost"}>
+            <span className="sr-only">Open</span>
+            <MoreVertical className="h-4 w-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuLabel>Action</DropdownMenuLabel>
+
+          <DropdownMenuItem onClick={() => onCopy(data.transactionId)}>
+            <Copy className="h-4 w-4 mr-2" />
+            Copy Transaction ID
+          </DropdownMenuItem>
+
+          {isUpdateAllowed && (
+            <DropdownMenuItem onClick={onUpdate}>
+              <Edit className="h-4 w-4 mr-2" />
+              Update
+            </DropdownMenuItem>
+          )}
+
+          <DropdownMenuItem onClick={() => setOpen(true)}>
+            <Trash className="h-4 w-4 mr-2" />
+            Delete
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </>
+  );
+};
